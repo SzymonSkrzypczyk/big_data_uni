@@ -1,0 +1,103 @@
+# Zadanie 2
+Spark UI - możemy w nim znaleźć kilka kolumn(u mnie 9):
+- Jobs - pokazuje ID jobów ich opis, a także np. czas wykonania, co ważne pokazuje tez od jakiego czasu aktywny jest klaster.
+- Stages - pokazuje kolejne skonczone Stage, możemy podejrzeć co jest odpalane w scali i jakie kolejne etapy zostały wykonane
+- Storage - pokazuje statystyki odnośnie zużycia dysku np. ilość Bytów wyczytanych z zewnętrznych źródel
+- Environment - opis środowiska, w którym pracuje klaster np. wersje scali, czy samego sparka
+- Executors - kolejne statystyki odnośnie wykonań naszych zadań, takie jak ile tasków zostało zakończonych/zakończyly się niepowodzeniem itd.
+- SQL/Dataframe - wszystkie statystyki i wizualizacje odnoszące się do tabel i dataframe'ów jakie były używane
+- JDBC/ODBC Server - informacje odnośnie polaczenia z bazami danych
+- Structured Streaming - informacje odnośnie streamowanych danych(u mnie puste)
+- Connect - Informacje odnośnie aktywnych sesji, ile są polaczone itd. 
+
+# Zadanie 3
+
+Po GroupBy
+
+== Physical Plan ==
+AdaptiveSparkPlan (7)
++- == Initial Plan ==
+   TakeOrderedAndProject (6)
+   +- HashAggregate (5)
+      +- Exchange (4)
+         +- HashAggregate (3)
+            +- Project (2)
+               +- Scan csv  (1)
+
+
+(1) Scan csv 
+Output [1]: [name#9387]
+Batched: false
+Location: InMemoryFileIndex [dbfs:/FileStore/tables/Files/names.csv]
+ReadSchema: struct<name:string>
+
+(2) Project
+Output [1]: [split(name#9387,  , 2)[0] AS first_name#9512]
+Input [1]: [name#9387]
+
+(3) HashAggregate
+Input [1]: [first_name#9512]
+Keys [1]: [first_name#9512]
+Functions [1]: [partial_count(1) AS count#9544L]
+Aggregate Attributes [1]: [count#9543L]
+Results [2]: [first_name#9512, count#9544L]
+
+(4) Exchange
+Input [2]: [first_name#9512, count#9544L]
+Arguments: hashpartitioning(first_name#9512, 200), ENSURE_REQUIREMENTS, [plan_id=3435]
+
+(5) HashAggregate
+Input [2]: [first_name#9512, count#9544L]
+Keys [1]: [first_name#9512]
+Functions [1]: [finalmerge_count(merge count#9544L) AS count(1)#9537L]
+Aggregate Attributes [1]: [count(1)#9537L]
+Results [2]: [first_name#9512, count(1)#9537L AS count#9538L]
+
+(6) TakeOrderedAndProject
+Input [2]: [first_name#9512, count#9538L]
+Arguments: 1, [count#9538L DESC NULLS LAST], [first_name#9512, count#9538L]
+
+(7) AdaptiveSparkPlan
+Output [2]: [first_name#9512, count#9538L]
+Arguments: isFinalPlan=false
+
+Bez Groupby
+
+== Physical Plan ==
+AdaptiveSparkPlan (6)
++- == Initial Plan ==
+   Sort (5)
+   +- Exchange (4)
+      +- Project (3)
+         +- Project (2)
+            +- Scan csv  (1)
+
+
+(1) Scan csv 
+Output [15]: [imdb_name_id#9386, name#9387, birth_name#9388, height#9389, birth_details#9391, date_of_birth#9392, place_of_birth#9393, date_of_death#9395, place_of_death#9396, reason_of_death#9397, spouses_string#9398, spouses#9399, divorces#9400, spouses_with_children#9401, children#9402]
+Batched: false
+Location: InMemoryFileIndex [dbfs:/FileStore/tables/Files/names.csv]
+ReadSchema: struct<imdb_name_id:string,name:string,birth_name:string,height:int,birth_details:string,date_of_birth:string,place_of_birth:string,date_of_death:string,place_of_death:string,reason_of_death:string,spouses_string:string,spouses:int,divorces:int,spouses_with_children:int,children:int>
+
+(2) Project
+Output [16]: [imdb_name_id#9386, name#9387, birth_name#9388, height#9389, birth_details#9391, cast(gettimestamp(date_of_birth#9392, dd.mm.yyyy, TimestampType, Some(Etc/UTC), false) as date) AS date_of_birth#9556, place_of_birth#9393, cast(gettimestamp(date_of_death#9395, dd.mm.yyyy, TimestampType, Some(Etc/UTC), false) as date) AS date_of_death#9576, place_of_death#9396, reason_of_death#9397, spouses_string#9398, spouses#9399, divorces#9400, spouses_with_children#9401, children#9402, round((cast(height#9389 as double) / 30.48), 2) AS height_feet#9492]
+Input [15]: [imdb_name_id#9386, name#9387, birth_name#9388, height#9389, birth_details#9391, date_of_birth#9392, place_of_birth#9393, date_of_death#9395, place_of_death#9396, reason_of_death#9397, spouses_string#9398, spouses#9399, divorces#9400, spouses_with_children#9401, children#9402]
+
+(3) Project
+Output [18]: [imdb_name_id#9386 AS ImdbNameId#9635, name#9387 AS Name#9654, birth_name#9388 AS BirthName#9673, height#9389 AS Height#9692, birth_details#9391 AS BirthDetails#9711, date_of_birth#9556 AS DateOfBirth#9730, place_of_birth#9393 AS PlaceOfBirth#9749, date_of_death#9576 AS DateOfDeath#9768, place_of_death#9396 AS PlaceOfDeath#9787, reason_of_death#9397 AS ReasonOfDeath#9806, spouses_string#9398 AS SpousesString#9825, spouses#9399 AS Spouses#9844, divorces#9400 AS Divorces#9863, spouses_with_children#9401 AS SpousesWithChildren#9882, children#9402 AS Children#9901, 1742403169 AS CurrentEpochTimestamp#9920L, height_feet#9492 AS HeightFeet#9939, (year(date_of_death#9576) - year(date_of_birth#9556)) AS Age#9958]
+Input [16]: [imdb_name_id#9386, name#9387, birth_name#9388, height#9389, birth_details#9391, date_of_birth#9556, place_of_birth#9393, date_of_death#9576, place_of_death#9396, reason_of_death#9397, spouses_string#9398, spouses#9399, divorces#9400, spouses_with_children#9401, children#9402, height_feet#9492]
+
+(4) Exchange
+Input [18]: [ImdbNameId#9635, Name#9654, BirthName#9673, Height#9692, BirthDetails#9711, DateOfBirth#9730, PlaceOfBirth#9749, DateOfDeath#9768, PlaceOfDeath#9787, ReasonOfDeath#9806, SpousesString#9825, Spouses#9844, Divorces#9863, SpousesWithChildren#9882, Children#9901, CurrentEpochTimestamp#9920L, HeightFeet#9939, Age#9958]
+Arguments: rangepartitioning(Name#9654 ASC NULLS FIRST, 200), ENSURE_REQUIREMENTS, [plan_id=3627]
+
+(5) Sort
+Input [18]: [ImdbNameId#9635, Name#9654, BirthName#9673, Height#9692, BirthDetails#9711, DateOfBirth#9730, PlaceOfBirth#9749, DateOfDeath#9768, PlaceOfDeath#9787, ReasonOfDeath#9806, SpousesString#9825, Spouses#9844, Divorces#9863, SpousesWithChildren#9882, Children#9901, CurrentEpochTimestamp#9920L, HeightFeet#9939, Age#9958]
+Arguments: [Name#9654 ASC NULLS FIRST], true, 0
+
+(6) AdaptiveSparkPlan
+Output [18]: [ImdbNameId#9635, Name#9654, BirthName#9673, Height#9692, BirthDetails#9711, DateOfBirth#9730, PlaceOfBirth#9749, DateOfDeath#9768, PlaceOfDeath#9787, ReasonOfDeath#9806, SpousesString#9825, Spouses#9844, Divorces#9863, SpousesWithChildren#9882, Children#9901, CurrentEpochTimestamp#9920L, HeightFeet#9939, Age#9958]
+Arguments: isFinalPlan=false
+
+
+Podczas operacji Groupby mamy dodatkowy krok - HashAggregate, co tez widać po samej nazwie. Poza tym oba plany są w miare podobne
