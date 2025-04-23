@@ -1,0 +1,11 @@
+5 metod 
+
+1) Metoda odczytu plików konfiguracyjnych np. zapisanych w pliku YAML, a jeśli brak danego klucza używanie zmiennej środowiskowej
+
+2) Unikanie Hardcodowanych wartości, zamiast nich używanie zmiennych środowiskowych i z configów
+
+3) Parsowanie danych przychodzących z Kafki do formatu tabelarycznego, w celu poprawnego obsługiwania pustych/uszkodzonych wartości
+
+4) Przed zapisem danych należy upiewnić się, że nie są one duplikatami.
+
+5) Dodawanie metainformacji do danych, aby później łatwiej można było je obługiwać
